@@ -1,0 +1,5 @@
+Flask
+openai-whisper
+ffmpeg-python
+requests
+gunicorn
