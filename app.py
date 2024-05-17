@@ -38,7 +38,9 @@ def transcribe():
     result = model.transcribe(video_file)
     return jsonify({"transcription": result['text']})
 
+@app.route('/')
+def index():
+    return "Flask server is running!"
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    print(f"PORT environment variable: {port}")
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
