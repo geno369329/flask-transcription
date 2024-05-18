@@ -8,6 +8,9 @@ app = Flask(__name__)
 # Load Whisper model
 model = whisper.load_model("base")
 
+# Replace with your Make webhook URL
+MAKE_WEBHOOK_URL = "YOUR_MAKE_WEBHOOK_URL"
+
 def download_video(video_url, output_file):
     # Convert Dropbox link to direct download link
     if 'www.dropbox.com' in video_url:
@@ -23,11 +26,17 @@ def download_video(video_url, output_file):
     else:
         raise Exception("Failed to download video")
 
+def trigger_make_webhook(data):
+    response = requests.post(MAKE_WEBHOOK_URL, json=data)
+    if response.status_code != 200:
+        raise Exception("Failed to trigger Make webhook")
+
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
     print("Received POST request at /transcribe")
     data = request.json
     video_url = data.get('video_url')
+    page_id = data.get('page_id')  # Get the page ID from the request
     if not video_url:
         return jsonify({"error": "No video URL provided"}), 400
 
@@ -35,7 +44,7 @@ def transcribe():
     download_video(video_url, video_file)
 
     # Transcribe the video file with timestamps
-    result = model.transcribe(video_file, task='transcribe', language='en', options={"fp16": False, "timestamps": True})
+    result = model.transcribe(video_file, fp16=False, language='en', timestamps=True)
 
     # Extract text and timestamps
     segments = result.get('segments')
@@ -49,6 +58,9 @@ def transcribe():
             "end_time": end_time,
             "text": text
         })
+
+    # Trigger Make webhook with transcription data and page ID
+    trigger_make_webhook({"transcription": transcription, "page_id": page_id})
 
     return jsonify({"transcription": transcription})
 
