@@ -2,17 +2,19 @@ from flask import Flask, request, jsonify
 import requests
 import whisper
 import os
-from threading import Thread
-import time
-import uuid
 
 app = Flask(__name__)
 
 # Load Whisper model
 model = whisper.load_model("base")
-jobs = {}
 
 def download_video(video_url, output_file):
+    # Convert Dropbox link to direct download link
+    if 'www.dropbox.com' in video_url:
+        video_url = video_url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+        video_url = video_url.replace('?dl=0', '')
+
+    # Download the video file
     response = requests.get(video_url, stream=True)
     if response.status_code == 200:
         with open(output_file, 'wb') as f:
@@ -21,38 +23,34 @@ def download_video(video_url, output_file):
     else:
         raise Exception("Failed to download video")
 
-def transcribe_video(job_id, video_url):
-    try:
-        video_file = f"{job_id}.mp4"
-        download_video(video_url, video_file)
-
-        # Transcribe the video file
-        result = model.transcribe(video_file)
-        jobs[job_id] = {"status": "completed", "transcription": result['text']}
-    except Exception as e:
-        jobs[job_id] = {"status": "error", "message": str(e)}
-
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
+    print("Received POST request at /transcribe")
     data = request.json
     video_url = data.get('video_url')
     if not video_url:
         return jsonify({"error": "No video URL provided"}), 400
 
-    job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "processing"}
-    thread = Thread(target=transcribe_video, args=(job_id, video_url))
-    thread.start()
+    video_file = "video.mp4"
+    download_video(video_url, video_file)
 
-    return jsonify({"job_id": job_id})
+    # Transcribe the video file with timestamps
+    result = model.transcribe(video_file, task='transcribe', language='en', options={"fp16": False, "timestamps": True})
 
-@app.route('/status/<job_id>', methods=['GET'])
-def status(job_id):
-    job = jobs.get(job_id)
-    if not job:
-        return jsonify({"error": "Invalid job ID"}), 404
+    # Extract text and timestamps
+    segments = result.get('segments')
+    transcription = []
+    for segment in segments:
+        start_time = segment['start']
+        end_time = segment['end']
+        text = segment['text']
+        transcription.append({
+            "start_time": start_time,
+            "end_time": end_time,
+            "text": text
+        })
 
-    return jsonify(job)
+    return jsonify({"transcription": transcription})
 
 @app.route('/')
 def index():
