@@ -13,7 +13,6 @@ model = whisper.load_model("base")
 jobs = {}
 
 def download_video(video_url, output_file):
-    # Download the video file
     response = requests.get(video_url, stream=True)
     if response.status_code == 200:
         with open(output_file, 'wb') as f:
@@ -23,12 +22,15 @@ def download_video(video_url, output_file):
         raise Exception("Failed to download video")
 
 def transcribe_video(job_id, video_url):
-    video_file = f"{job_id}.mp4"
-    download_video(video_url, video_file)
+    try:
+        video_file = f"{job_id}.mp4"
+        download_video(video_url, video_file)
 
-    # Transcribe the video file
-    result = model.transcribe(video_file)
-    jobs[job_id] = {"status": "completed", "transcription": result['text']}
+        # Transcribe the video file
+        result = model.transcribe(video_file)
+        jobs[job_id] = {"status": "completed", "transcription": result['text']}
+    except Exception as e:
+        jobs[job_id] = {"status": "error", "message": str(e)}
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
