@@ -60,6 +60,7 @@ def transcribe():
             "text": text
         })
 
+    # Send transcription to Make webhook
     webhook_url = "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
     payload = {
         "transcription": transcription_with_timestamps,
