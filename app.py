@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import requests
 import whisper
 import os
+import threading
 
 app = Flask(__name__)
 
@@ -27,23 +28,13 @@ def download_video(video_url, output_file):
         app.logger.error(f"Failed to download video. HTTP status code: {response.status_code}")
         raise Exception("Failed to download video")
 
-@app.route('/transcribe', methods=['POST'])
-def transcribe():
-    app.logger.info("Received POST request at /transcribe")
-    data = request.json
-    video_url = data.get('video_url')
-    page_id = data.get('page_id')
-    if not video_url:
-        return jsonify({"error": "No video URL provided"}), 400
-    if not page_id:
-        return jsonify({"error": "No page ID provided"}), 400
-
+def transcribe_video(video_url, page_id):
     video_file = "video.mp4"
     try:
         download_video(video_url, video_file)
     except Exception as e:
         app.logger.error(f"Error during video download: {str(e)}")
-        return jsonify({"error": "Failed to download video"}), 500
+        return
 
     result = model.transcribe(video_file, fp16=False)
     transcription = result['text']
@@ -72,7 +63,20 @@ def transcribe():
     except Exception as e:
         app.logger.error(f"Error sending webhook: {str(e)}")
 
-    return jsonify({"status": "completed", "transcription": transcription_with_timestamps})
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    app.logger.info("Received POST request at /transcribe")
+    data = request.json
+    video_url = data.get('video_url')
+    page_id = data.get('page_id')
+    if not video_url:
+        return jsonify({"error": "No video URL provided"}), 400
+    if not page_id:
+        return jsonify({"error": "No page ID provided"}), 400
+
+    threading.Thread(target=transcribe_video, args=(video_url, page_id)).start()
+
+    return jsonify({"status": "processing", "message": "Transcription is being processed in the background."})
 
 @app.route('/')
 def index():
