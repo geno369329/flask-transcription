@@ -10,12 +10,7 @@ app = Flask(__name__)
 model = whisper.load_model("base")
 
 def download_video(video_url, output_file):
-    if 'www.dropbox.com' in video_url:
-        video_url = video_url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
-        video_url = video_url.replace('?dl=0', '')
-
     app.logger.info(f"Downloading video from URL: {video_url}")
-
     response = requests.get(video_url, stream=True)
     app.logger.info(f"HTTP status code for video download: {response.status_code}")
 
@@ -36,7 +31,13 @@ def transcribe_video(video_url, page_id):
         app.logger.error(f"Error during video download: {str(e)}")
         return
 
-    result = model.transcribe(video_file, fp16=False)
+    app.logger.info("Starting transcription")
+    try:
+        result = model.transcribe(video_file, fp16=False)
+    except Exception as e:
+        app.logger.error(f"Error during transcription: {str(e)}")
+        return
+
     transcription = result['text']
     segments = result['segments']
 
@@ -50,6 +51,8 @@ def transcribe_video(video_url, page_id):
             "end": end,
             "text": text
         })
+
+    app.logger.info("Transcription completed")
 
     # Send transcription to Make webhook
     webhook_url = "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
