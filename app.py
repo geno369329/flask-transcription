@@ -8,8 +8,8 @@ app = Flask(__name__)
 # Load Whisper model
 model = whisper.load_model("base")
 
-# Replace with your Make webhook URL
-MAKE_WEBHOOK_URL = "YOUR_MAKE_WEBHOOK_URL"
+# Make webhook URL
+MAKE_WEBHOOK_URL = "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
 
 def download_video(video_url, output_file):
     # Convert Dropbox link to direct download link
