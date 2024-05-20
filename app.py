@@ -54,8 +54,8 @@ def transcribe_video(video_url, page_id):
 
     app.logger.info("Transcription completed")
 
-    # Send transcription to Make webhook
-    webhook_url = "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
+    # Send transcription to Pipedream webhook
+    webhook_url = "https://eolza06bx6m345b.m.pipedream.net"
     payload = {
         "transcription": transcription_with_timestamps,
         "page_id": page_id
