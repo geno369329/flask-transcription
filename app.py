@@ -23,7 +23,14 @@ def download_video(video_url, output_file):
         app.logger.error(f"Failed to download video. HTTP status code: {response.status_code}")
         raise Exception("Failed to download video")
 
-def transcribe_video(video_url, page_id):
+def send_webhook(webhook_url, payload):
+    try:
+        webhook_response = requests.post(webhook_url, json=payload)
+        app.logger.info(f"Webhook response status code: {webhook_response.status_code}")
+    except Exception as e:
+        app.logger.error(f"Error sending webhook: {str(e)}")
+
+def transcribe_video(video_url, page_id, format_value):
     video_file = "video.mp4"
     try:
         download_video(video_url, video_file)
@@ -54,17 +61,22 @@ def transcribe_video(video_url, page_id):
 
     app.logger.info("Transcription completed")
 
-    # Send transcription to Make webhook
-    webhook_url = "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
     payload = {
         "transcription": transcription_with_timestamps,
         "page_id": page_id
     }
-    try:
-        webhook_response = requests.post(webhook_url, json=payload)
-        app.logger.info(f"Webhook response status code: {webhook_response.status_code}")
-    except Exception as e:
-        app.logger.error(f"Error sending webhook: {str(e)}")
+
+    # Define your webhooks based on format
+    webhooks = {
+        "Short Form Video": "https://hook.us1.make.com/7mm5hn9lt3uo7cx454melcbnxuiik0jg",
+        "Long Form Video": "https://hook.us1.make.com/auddqtllt89eze3bmt1ayoe8qgdvo86f"
+    }
+
+    webhook_url = webhooks.get(format_value)
+    if webhook_url:
+        send_webhook(webhook_url, payload)
+    else:
+        app.logger.error(f"No webhook URL found for format: {format_value}")
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
@@ -72,12 +84,15 @@ def transcribe():
     data = request.json
     video_url = data.get('video_url')
     page_id = data.get('page_id')
+    format_value = data.get('format_value')  # Assuming this property is passed in the request
     if not video_url:
         return jsonify({"error": "No video URL provided"}), 400
     if not page_id:
         return jsonify({"error": "No page ID provided"}), 400
+    if not format_value:
+        return jsonify({"error": "No format value provided"}), 400
 
-    threading.Thread(target=transcribe_video, args=(video_url, page_id)).start()
+    threading.Thread(target=transcribe_video, args=(video_url, page_id, format_value)).start()
 
     return jsonify({"status": "processing", "message": "Transcription is being processed in the background."})
 
